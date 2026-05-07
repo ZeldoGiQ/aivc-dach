@@ -1,0 +1,22 @@
+{
+  "id": "vertical-short",
+  "name": "Vertical Short",
+  "duration": 15,
+  "aspectRatio": "9:16",
+  "resolution": "1080x1920",
+  "description": "Vertikales Short-Format für TikTok, Instagram Reels und YouTube Shorts",
+  "scenes": [
+    {"id": 1, "from": 0, "to": 2, "name": "Hook", "description": "Großer Hook-Text"},
+    {"id": 2, "from": 2, "to": 12, "name": "Content", "description": "4 Content-Zeilen nacheinander"},
+    {"id": 3, "from": 12, "to": 15, "name": "CTA", "description": "Call-to-Action mit Plattform-Hinweis"}
+  ],
+  "variables": [
+    {"key": "HOOK", "label": "Hook-Wort/Phrase (kurz!)", "required": true, "example": "STOPP!", "maxLength": 15},
+    {"key": "CONTENT_LINE_1", "label": "Content-Zeile 1", "required": true, "maxLength": 40},
+    {"key": "CONTENT_LINE_2", "label": "Content-Zeile 2", "required": true, "maxLength": 40},
+    {"key": "CONTENT_LINE_3", "label": "Content-Zeile 3", "required": true, "maxLength": 40},
+    {"key": "CONTENT_LINE_4", "label": "Content-Zeile 4", "required": true, "maxLength": 40},
+    {"key": "CTA", "label": "Call-to-Action", "required": true, "example": "Mehr Tipps", "maxLength": 30},
+    {"key": "PLATFORM", "label": "Plattform für CTA", "required": true, "example": "TikTok", "maxLength": 20}
+  ]
+}

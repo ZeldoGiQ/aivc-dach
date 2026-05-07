@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "brand": {
+    "name": "Mein Kanal",
+    "primaryColor": "#0EA5E9",
+    "accentColor": "#F59E0B",
+    "backgroundColor": "#0A0A0A",
+    "textColor": "#FFFFFF",
+    "fontHeading": "Inter",
+    "fontBody": "Inter",
+    "fontMono": "JetBrains Mono",
+    "logoPath": null,
+    "logoPosition": "top-left",
+    "language": "de"
+  },
+  "preferences": {
+    "subtitlesEnabled": true,
+    "subtitlesLanguage": "de",
+    "defaultAspectRatio": "16:9",
+    "outputDirectory": "./output"
+  },
+  "setupComplete": false
+}

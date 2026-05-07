@@ -1,0 +1,191 @@
+<!--
+  Podcast-Intro mit Waveform (15 Sekunden)
+  Variablen: {{PODCAST_NAME}}, {{EPISODE_TITLE}}, {{HOST_NAME}}, {{EPISODE_NUMBER}}, {{LOGO_PATH}}
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --primary: {{PRIMARY_COLOR}};
+    --accent: {{ACCENT_COLOR}};
+    --bg: {{BACKGROUND_COLOR}};
+    --text: {{TEXT_COLOR}};
+    --font-heading: '{{FONT_HEADING}}', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    width: 1920px; height: 1080px;
+    background: var(--bg);
+    font-family: var(--font-heading);
+    overflow: hidden;
+    position: relative;
+    color: var(--text);
+  }
+  
+  /* Animierte Waveform im Hintergrund */
+  .waveform-container {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 50%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 60px;
+    opacity: 0;
+    animation: fadeIn 1s ease-out 0s forwards;
+  }
+  .wave-bar {
+    width: 16px;
+    background: linear-gradient(to top, var(--primary), var(--accent));
+    border-radius: 8px 8px 0 0;
+    animation: wave 1.2s ease-in-out infinite;
+    transform-origin: bottom;
+  }
+  
+  /* Glow im Zentrum */
+  .center-glow {
+    position: absolute;
+    top: 35%; left: 50%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, var(--primary) 0%, transparent 60%);
+    transform: translate(-50%, -50%);
+    filter: blur(60px);
+    opacity: 0;
+    animation: glowFade 15s ease-in-out forwards;
+  }
+  
+  /* Szene 1: Waveform-Reveal (0-3s) */
+  .waveform-reveal {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+  }
+  
+  /* Szene 2: Podcast Info (3-10s) */
+  .podcast-info {
+    position: absolute;
+    top: 35%;
+    left: 0; right: 0;
+    text-align: center;
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out 3s forwards, fadeOut 0.5s ease-in 9.5s forwards;
+  }
+  .episode-badge {
+    display: inline-block;
+    padding: 16px 40px;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 28px;
+    font-weight: 800;
+    border-radius: 100px;
+    margin-bottom: 32px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .podcast-name {
+    font-size: 72px;
+    font-weight: 700;
+    color: var(--text);
+    opacity: 0.6;
+    margin-bottom: 24px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .episode-title {
+    font-size: 120px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding: 0 80px;
+  }
+  
+  /* Szene 3: Host & Folge (10-15s) */
+  .host-info {
+    position: absolute;
+    top: 40%;
+    left: 0; right: 0;
+    text-align: center;
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out 10s forwards;
+  }
+  .host-label {
+    font-size: 36px;
+    color: var(--text);
+    opacity: 0.5;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+  }
+  .host-name {
+    font-size: 144px;
+    font-weight: 900;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 32px;
+    letter-spacing: -0.03em;
+  }
+  .episode-number-display {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.1em;
+  }
+  
+  @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; } }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes glowFade {
+    0% { opacity: 0; }
+    20% { opacity: 0.5; }
+    100% { opacity: 0.3; }
+  }
+  @keyframes wave {
+    0%, 100% { height: 20px; }
+    50% { height: var(--wave-height); }
+  }
+</style>
+</head>
+<body>
+  <div class="center-glow"></div>
+  
+  <!-- 80 Wave-Bars mit randomisierten Höhen und Delays -->
+  <div class="waveform-container" id="waveform"></div>
+  
+  <div class="podcast-info">
+    <div class="episode-badge">Folge {{EPISODE_NUMBER}}</div>
+    <div class="podcast-name">{{PODCAST_NAME}}</div>
+    <div class="episode-title">{{EPISODE_TITLE}}</div>
+  </div>
+  
+  <div class="host-info">
+    <div class="host-label">Mit</div>
+    <div class="host-name">{{HOST_NAME}}</div>
+    <div class="episode-number-display">{{PODCAST_NAME}} · Folge {{EPISODE_NUMBER}}</div>
+  </div>
+  
+  <script>
+    // Generiere Wave-Bars mit zufälligen Höhen und Animations-Delays
+    const container = document.getElementById('waveform');
+    const barCount = 80;
+    for (let i = 0; i < barCount; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'wave-bar';
+      const height = 80 + Math.random() * 320;
+      const delay = (Math.random() * 1.2).toFixed(2);
+      bar.style.setProperty('--wave-height', height + 'px');
+      bar.style.animationDelay = delay + 's';
+      container.appendChild(bar);
+    }
+  </script>
+</body>
+</html>

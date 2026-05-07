@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "templates": [
+    {
+      "id": "news-intro",
+      "name": "News-Intro",
+      "duration": 10,
+      "aspectRatio": "16:9",
+      "path": "templates/news-intro",
+      "triggers": ["news-intro", "news intro", "news über", "nachrichten", "news anfang", "news header"],
+      "description": "10 Sek News-Intro mit Logo-Reveal, Topic-Card und Outro"
+    },
+    {
+      "id": "promo-clip",
+      "name": "Promo-Clip",
+      "duration": 30,
+      "aspectRatio": "16:9",
+      "path": "templates/promo-clip",
+      "triggers": ["promo", "werbeclip", "produktvideo", "werbung", "ad", "promotion"],
+      "description": "30 Sek Werbeclip mit Hook, 3 Features, Social Proof und CTA"
+    },
+    {
+      "id": "tutorial-outro",
+      "name": "Tutorial-Outro",
+      "duration": 15,
+      "aspectRatio": "16:9",
+      "path": "templates/tutorial-outro",
+      "triggers": ["outro", "tutorial-ende", "subscribe", "abo-animation", "ende", "schluss"],
+      "description": "15 Sek Outro mit Recap, Subscribe-Reminder und Vorschau"
+    },
+    {
+      "id": "sponsor-read",
+      "name": "Sponsor-Read",
+      "duration": 20,
+      "aspectRatio": "16:9",
+      "path": "templates/sponsor-read",
+      "triggers": ["sponsor", "werbepartner", "sponsored", "partner-einblendung"],
+      "description": "20 Sek Werbepartner-Einblendung mit Logo, Pitch und Promo-Code"
+    },
+    {
+      "id": "vertical-short",
+      "name": "Vertical Short",
+      "duration": 15,
+      "aspectRatio": "9:16",
+      "path": "templates/vertical-short",
+      "triggers": ["short", "tiktok", "reels", "vertikal", "9:16", "shorts"],
+      "description": "15 Sek vertikales Format für TikTok, Reels und Shorts"
+    },
+    {
+      "id": "podcast-intro",
+      "name": "Podcast-Intro",
+      "duration": 15,
+      "aspectRatio": "16:9",
+      "path": "templates/podcast-intro",
+      "triggers": ["podcast-intro", "podcast", "waveform", "podcast intro"],
+      "description": "15 Sek Podcast-Intro mit animierter Waveform"
+    }
+  ]
+}

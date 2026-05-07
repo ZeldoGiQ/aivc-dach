@@ -1,0 +1,173 @@
+<!--
+  Sponsor-Read Template (20 Sekunden)
+  Variablen: {{SPONSOR_NAME}}, {{SPONSOR_LOGO}}, {{PITCH_LINE_1}}, {{PITCH_LINE_2}}, {{PROMO_CODE}}, {{LINK}}
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --primary: {{PRIMARY_COLOR}};
+    --accent: {{ACCENT_COLOR}};
+    --bg: {{BACKGROUND_COLOR}};
+    --text: {{TEXT_COLOR}};
+    --font-heading: '{{FONT_HEADING}}', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    width: 1920px; height: 1080px;
+    background: var(--bg);
+    font-family: var(--font-heading);
+    overflow: hidden;
+    position: relative;
+    color: var(--text);
+  }
+  
+  /* Sponsored-Banner immer sichtbar */
+  .sponsored-banner {
+    position: absolute;
+    top: 60px; right: 60px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid var(--accent);
+    padding: 16px 32px;
+    border-radius: 100px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    z-index: 10;
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out 0.3s forwards;
+  }
+  
+  .scene { position: absolute; inset: 0; opacity: 0; padding: 120px; }
+  
+  /* Logo-Reveal (0-3s) */
+  .logo-reveal {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    animation: fadeIn 0.5s ease-out 0s forwards, fadeOut 0.4s ease-in 2.6s forwards;
+  }
+  .logo-reveal img {
+    max-width: 600px; max-height: 400px;
+    filter: drop-shadow(0 0 40px var(--primary));
+    animation: logoPop 0.6s ease-out 0.2s forwards;
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  .logo-reveal .sponsor-name {
+    font-size: 96px;
+    font-weight: 900;
+    margin-top: 32px;
+    letter-spacing: -0.02em;
+    opacity: 0;
+    animation: fadeUp 0.5s ease-out 0.5s forwards;
+  }
+  
+  /* Brand-Card (3-15s) */
+  .brand-card {
+    display: flex; flex-direction: column;
+    justify-content: center;
+    animation: fadeIn 0.5s ease-out 3s forwards, fadeOut 0.4s ease-in 14.6s forwards;
+  }
+  .pitch-label {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 12px 32px;
+    border-radius: 100px;
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 48px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .pitch-line {
+    font-size: 80px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 40px;
+    letter-spacing: -0.02em;
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  .pitch-line.first { animation: fadeUp 0.6s ease-out 3.2s forwards; }
+  .pitch-line.second { 
+    animation: fadeUp 0.6s ease-out 3.7s forwards; 
+    color: var(--primary);
+  }
+  
+  /* Promo-Code (15-20s) */
+  .promo-section {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out 15s forwards;
+  }
+  .promo-label {
+    font-size: 36px;
+    color: var(--text);
+    opacity: 0.7;
+    margin-bottom: 32px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+  }
+  .promo-code {
+    background: var(--accent);
+    color: var(--bg);
+    padding: 32px 80px;
+    border-radius: 24px;
+    font-size: 96px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    margin-bottom: 48px;
+    box-shadow: 0 0 60px var(--accent);
+    animation: codeReveal 0.5s ease-out 15.3s forwards;
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  .promo-link {
+    font-size: 48px;
+    color: var(--primary);
+    font-weight: 700;
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out 16s forwards;
+  }
+  
+  @keyframes fadeIn { to { opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; } }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes logoPop {
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes codeReveal {
+    to { opacity: 1; transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+  <div class="sponsored-banner">Werbung · Sponsored</div>
+  
+  <div class="scene logo-reveal">
+    {{#if SPONSOR_LOGO}}<img src="{{SPONSOR_LOGO}}" alt="{{SPONSOR_NAME}}">{{/if}}
+    <div class="sponsor-name">{{SPONSOR_NAME}}</div>
+  </div>
+  
+  <div class="scene brand-card">
+    <div class="pitch-label">Heutiger Partner</div>
+    <div class="pitch-line first">{{PITCH_LINE_1}}</div>
+    <div class="pitch-line second">{{PITCH_LINE_2}}</div>
+  </div>
+  
+  <div class="scene promo-section">
+    <div class="promo-label">Mit dem Code</div>
+    <div class="promo-code">{{PROMO_CODE}}</div>
+    <div class="promo-link">{{LINK}}</div>
+  </div>
+</body>
+</html>

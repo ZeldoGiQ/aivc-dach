@@ -1,0 +1,20 @@
+{
+  "id": "promo-clip",
+  "name": "Promo-Clip",
+  "duration": 30,
+  "aspectRatio": "16:9",
+  "description": "Werbeclip mit Hook, 3 Features, Social Proof und CTA",
+  "scenes": [
+    {"id": 1, "from": 0, "to": 5, "name": "Hook", "description": "Aufmerksamkeitsstarker Einstiegs-Text"},
+    {"id": 2, "from": 5, "to": 20, "name": "Features", "description": "3 Feature-Karten mit Icons"},
+    {"id": 3, "from": 20, "to": 25, "name": "Social Proof", "description": "Große Zahl mit Beschreibung"},
+    {"id": 4, "from": 25, "to": 30, "name": "CTA", "description": "Call-to-Action Button"}
+  ],
+  "variables": [
+    {"key": "HOOK", "label": "Hook-Text (1 Satz, packend)", "required": true, "example": "Spar 10 Stunden pro Woche", "maxLength": 50},
+    {"key": "FEATURE_1", "label": "Feature 1", "required": true, "example": "Blitzschnell", "maxLength": 30},
+    {"key": "FEATURE_2", "label": "Feature 2", "required": true, "example": "Einfach zu nutzen", "maxLength": 30},
+    {"key": "FEATURE_3", "label": "Feature 3", "required": true, "example": "Voll automatisiert", "maxLength": 30},
+    {"key": "CTA_TEXT", "label": "Call-to-Action", "required": true, "example": "Jetzt starten", "maxLength": 25}
+  ]
+}
