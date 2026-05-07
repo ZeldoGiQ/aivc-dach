@@ -1,5 +1,6 @@
 # 🎬 Hyperframes Addon by Vibe Coding DACH
 
+
 **Erstelle professionelle Videos mit Claude Code – komplett auf Deutsch, in Minuten statt Stunden.**
 
 Dieses Addon erweitert [Hyperframes](https://hyperframes.heygen.com) um deutschsprachige Workflows, fertige Format-Templates und einen Brand-Wizard. Du musst nichts können außer Claude Code installiert zu haben.
