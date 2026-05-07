@@ -116,4 +116,4 @@ MIT – Mach damit was du willst. Wenn dir das Tool hilft, freuen wir uns über 
 
 - Basiert auf [Hyperframes](https://hyperframes.heygen.com) von HeyGen / Hunyuan
 - Inspiriert vom [RoboNuggets Helper](https://github.com/robonuggets/hyperframes-helper)
-- Gebaut mit ❤️ von der **Vibe Coding DACH** Community
+- Gebaut mit ❤️ für die **Vibe Coding DACH** Community
