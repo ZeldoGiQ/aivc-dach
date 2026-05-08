@@ -1,0 +1,266 @@
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { tmpdir, platform } from "node:os";
+import { join } from "node:path";
+import puppeteer, { type Browser } from "puppeteer";
+import ffmpegPath from "ffmpeg-static";
+
+function resolveFfmpegBinary(): string {
+	// Under Bun, ffmpeg-static returns a virtual `\ROOT\node_modules\.bun\...`
+	// path that node:child_process.spawn cannot resolve. Fall back to the
+	// real on-disk path inside node_modules/ffmpeg-static/.
+	if (ffmpegPath && existsSync(ffmpegPath)) {
+		return ffmpegPath;
+	}
+	const exeName = platform() === "win32" ? "ffmpeg.exe" : "ffmpeg";
+	const fallback = join(
+		process.cwd(),
+		"node_modules",
+		"ffmpeg-static",
+		exeName,
+	);
+	if (existsSync(fallback)) {
+		return fallback;
+	}
+	throw new Error(
+		`ffmpeg binary not found. Tried: ${ffmpegPath ?? "(null)"} and ${fallback}. Run \`node node_modules/ffmpeg-static/install.js\` from editor/apps/web.`,
+	);
+}
+import {
+	cachedFileExists,
+	cachedFilePath,
+	ensureCacheRoot,
+	templatePath,
+} from "./cache";
+import { applyTemplateVars, type TemplateVars } from "./template-vars";
+
+const FPS = 30;
+const VIEWPORT_WIDTH = 1920;
+const VIEWPORT_HEIGHT = 1080;
+const RENDER_TIMEOUT_MS = 30_000;
+
+export interface RenderInput {
+	template: string;
+	vars: TemplateVars;
+	durationSeconds: number;
+	styleVars: Record<string, string>;
+	hash: string;
+}
+
+export interface RenderProgress {
+	(progress: number): void;
+}
+
+let cachedBrowser: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+	if (cachedBrowser && cachedBrowser.connected) {
+		return cachedBrowser;
+	}
+	cachedBrowser = await puppeteer.launch({
+		headless: true,
+		args: [
+			"--no-sandbox",
+			"--disable-setuid-sandbox",
+			"--disable-dev-shm-usage",
+			"--default-background-color=00000000",
+			"--hide-scrollbars",
+		],
+	});
+	return cachedBrowser;
+}
+
+function buildStyleOverride({
+	styleVars,
+}: {
+	styleVars: Record<string, string>;
+}): string {
+	if (Object.keys(styleVars).length === 0) return "";
+	const decls = Object.entries(styleVars)
+		.map(([key, value]) => `${key}: ${value};`)
+		.join(" ");
+	return `<style>:root { ${decls} }</style>`;
+}
+
+async function renderFrames({
+	html,
+	durationSeconds,
+	frameDir,
+	onProgress,
+}: {
+	html: string;
+	durationSeconds: number;
+	frameDir: string;
+	onProgress?: RenderProgress;
+}): Promise<number> {
+	const browser = await getBrowser();
+	const page = await browser.newPage();
+
+	try {
+		await page.setViewport({
+			width: VIEWPORT_WIDTH,
+			height: VIEWPORT_HEIGHT,
+			deviceScaleFactor: 1,
+		});
+
+		await page.setContent(html, {
+			waitUntil: "networkidle0",
+			timeout: RENDER_TIMEOUT_MS,
+		});
+
+		// Pause every animation so we can step through deterministically.
+		await page.evaluate(() => {
+			for (const animation of document.getAnimations()) {
+				animation.pause();
+			}
+		});
+
+		const totalFrames = Math.max(1, Math.round(durationSeconds * FPS));
+		const stepMs = 1000 / FPS;
+
+		for (let frame = 0; frame < totalFrames; frame++) {
+			const tMs = frame * stepMs;
+			await page.evaluate((currentMs: number) => {
+				for (const animation of document.getAnimations()) {
+					animation.currentTime = currentMs;
+				}
+			}, tMs);
+
+			const frameFile = join(
+				frameDir,
+				`frame-${frame.toString().padStart(5, "0")}.png`,
+			);
+			const buffer = await page.screenshot({
+				type: "png",
+				omitBackground: true,
+				clip: {
+					x: 0,
+					y: 0,
+					width: VIEWPORT_WIDTH,
+					height: VIEWPORT_HEIGHT,
+				},
+			});
+			await writeFile(frameFile, buffer);
+
+			if (onProgress) {
+				onProgress((frame + 1) / totalFrames);
+			}
+		}
+
+		return totalFrames;
+	} finally {
+		await page.close();
+	}
+}
+
+async function encodeWebm({
+	frameDir,
+	outputPath,
+}: {
+	frameDir: string;
+	outputPath: string;
+}): Promise<void> {
+	const ffmpegBinary = resolveFfmpegBinary();
+	const args = [
+		"-y",
+		"-framerate",
+		String(FPS),
+		"-i",
+		join(frameDir, "frame-%05d.png"),
+		"-c:v",
+		"libvpx-vp9",
+		"-pix_fmt",
+		"yuva420p",
+		"-auto-alt-ref",
+		"0",
+		"-b:v",
+		"0",
+		"-crf",
+		"30",
+		"-deadline",
+		"good",
+		"-cpu-used",
+		"4",
+		outputPath,
+	];
+
+	await new Promise<void>((resolve, reject) => {
+		const proc = spawn(ffmpegBinary, args, { stdio: "pipe" });
+		let stderr = "";
+		proc.stderr.on("data", (chunk) => {
+			stderr += String(chunk);
+		});
+		proc.on("error", reject);
+		proc.on("close", (code) => {
+			if (code === 0) {
+				resolve();
+			} else {
+				reject(
+					new Error(
+						`ffmpeg exited with code ${code}. Last stderr:\n${stderr.slice(-2000)}`,
+					),
+				);
+			}
+		});
+	});
+}
+
+export async function renderOverlay({
+	template,
+	vars,
+	durationSeconds,
+	styleVars,
+	hash,
+	onProgress,
+}: RenderInput & { onProgress?: RenderProgress }): Promise<string> {
+	if (cachedFileExists({ hash })) {
+		return cachedFilePath({ hash });
+	}
+
+	const paths = templatePath({ template });
+	if (!existsSync(paths.htmlFile)) {
+		throw new Error(`Template not found: ${template} (looking for ${paths.htmlFile})`);
+	}
+
+	const rawHtml = await readFile(paths.htmlFile, "utf8");
+	const styleInjection = buildStyleOverride({ styleVars });
+	let html = applyTemplateVars({ html: rawHtml, vars });
+	if (styleInjection) {
+		// Inject after </head> opening so it overrides the template's :root defaults.
+		const idx = html.indexOf("</head>");
+		if (idx !== -1) {
+			html = `${html.slice(0, idx)}${styleInjection}${html.slice(idx)}`;
+		} else {
+			html = styleInjection + html;
+		}
+	}
+
+	await ensureCacheRoot();
+	const cacheTarget = cachedFilePath({ hash });
+	const tmpFrameDir = await mkdtemp(join(tmpdir(), "aivc-overlay-"));
+
+	try {
+		await mkdir(tmpFrameDir, { recursive: true });
+		await renderFrames({
+			html,
+			durationSeconds,
+			frameDir: tmpFrameDir,
+			onProgress: onProgress
+				? (p) => onProgress(p * 0.85) // reserve last 15% for ffmpeg
+				: undefined,
+		});
+		await encodeWebm({ frameDir: tmpFrameDir, outputPath: cacheTarget });
+		if (onProgress) onProgress(1);
+		return cacheTarget;
+	} finally {
+		await rm(tmpFrameDir, { recursive: true, force: true });
+	}
+}
+
+export async function shutdownOverlayRenderer(): Promise<void> {
+	if (cachedBrowser) {
+		await cachedBrowser.close();
+		cachedBrowser = null;
+	}
+}
