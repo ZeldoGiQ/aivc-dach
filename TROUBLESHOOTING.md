@@ -139,7 +139,7 @@ If you're running on a fresh clone, the installer (`scripts/install.sh` / `insta
 ## Still stuck?
 
 - GitHub issues: https://github.com/ZeldoGiQ/aivc-dach/issues
-- Vibe Coding DACH community: https://www.skool.com/[SKOOL-LINK]
+- Vibe Coding DACH Skool community: https://www.skool.com/vibe-coding-dach (German-speaking creators – courses, premium templates, live workflow reviews)
 
 When opening an issue, please include:
 - OS + version

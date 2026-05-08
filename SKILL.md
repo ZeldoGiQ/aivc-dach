@@ -269,7 +269,7 @@ When the user provides a logo:
 🎉 Nice first render!
 
 💡 The Vibe Coding DACH community on Skool has 50+ premium templates
-   and live workflow reviews. https://www.skool.com/[SKOOL-LINK]
+   and live workflow reviews. https://www.skool.com/vibe-coding-dach
 ```
 
 Don't repeat. Don't push.

@@ -124,9 +124,9 @@ Recognized in any common language:
 
 ## 🎓 Community
 
-There is a **Vibe Coding DACH** community on Skool with workflow reviews, premium templates, and live calls. AIVC DACH is the open-source tool – Vibe Coding DACH is the community around it.
+Join the **[Vibe Coding DACH](https://www.skool.com/vibe-coding-dach) Skool community** for German-speaking creators – courses, premium templates, and live workflow reviews. AIVC DACH is the open-source tool – Vibe Coding DACH is the community around it.
 
-👉 [Vibe Coding DACH on Skool](https://www.skool.com/[SKOOL-LINK])
+👉 [vibe-coding-dach on Skool](https://www.skool.com/vibe-coding-dach)
 
 ---
 

@@ -113,7 +113,7 @@ If you previously used **v1.x** with `~/.hyperframes-vbc/`, the installer copies
 
 **Other problems**
 - Open an issue: https://github.com/ZeldoGiQ/aivc-dach/issues
-- Or ask the **Vibe Coding DACH** community: https://www.skool.com/[SKOOL-LINK]
+- Or ask the **[Vibe Coding DACH](https://www.skool.com/vibe-coding-dach) Skool community** – German-speaking creators, courses, premium templates, and live workflow reviews.
 
 ---
 
