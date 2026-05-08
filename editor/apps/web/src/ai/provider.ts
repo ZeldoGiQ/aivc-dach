@@ -1,9 +1,10 @@
 import { anthropic } from "@ai-sdk/anthropic";
+import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { createOllama } from "ollama-ai-provider-v2";
 import type { LanguageModel } from "ai";
 
-export type ProviderId = "anthropic" | "openai" | "ollama";
+export type ProviderId = "anthropic" | "google" | "openai" | "ollama";
 
 export interface ResolvedProvider {
 	id: ProviderId;
@@ -28,13 +29,19 @@ export class ProviderConfigError extends Error {
 
 const DEFAULT_MODELS: Record<ProviderId, string> = {
 	anthropic: "claude-sonnet-4-5",
+	google: "gemini-2.0-flash",
 	openai: "gpt-4o-mini",
 	ollama: "llama3.2",
 };
 
 function readProviderId(): ProviderId {
 	const raw = process.env.AIVC_AI_PROVIDER?.toLowerCase().trim();
-	if (raw === "anthropic" || raw === "openai" || raw === "ollama") {
+	if (
+		raw === "anthropic" ||
+		raw === "google" ||
+		raw === "openai" ||
+		raw === "ollama"
+	) {
 		return raw;
 	}
 	return "anthropic";
@@ -58,6 +65,20 @@ export function resolveProvider(): ResolvedProvider {
 				id,
 				model: anthropic(modelName),
 				displayName: `Anthropic · ${modelName}`,
+			};
+		}
+		case "google": {
+			if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+				throw new ProviderConfigError({
+					message:
+						"Bitte GOOGLE_GENERATIVE_AI_API_KEY in editor/apps/web/.env.local setzen. API-Key holen unter: https://aistudio.google.com/app/apikey",
+					provider: "google",
+				});
+			}
+			return {
+				id,
+				model: google(modelName),
+				displayName: `Google · ${modelName}`,
 			};
 		}
 		case "openai": {
