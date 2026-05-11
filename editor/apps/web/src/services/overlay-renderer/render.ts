@@ -166,6 +166,16 @@ async function encodeWebm({
 	outputPath: string;
 }): Promise<void> {
 	const ffmpegBinary = resolveFfmpegBinary();
+	// We use libvpx (VP8) instead of libvpx-vp9 because:
+	//   - mediabunny (used by OpenCut) only reads alpha from WebM
+	//     per-Block BlockAdditions (matroska-demuxer.js:1902).
+	//   - libvpx-vp9 with yuva420p packs alpha differently — Chrome's
+	//     <video> tag can decode it but mediabunny/WebCodecs cannot,
+	//     so the overlay renders as a black rectangle in OpenCut.
+	//   - libvpx (VP8) with yuva420p produces standard BlockAdditions
+	//     which mediabunny detects → real transparency.
+	// metadata:s:v:0 alpha_mode=1 is also written so non-WebCodecs
+	// players (Premiere etc.) keep recognising the alpha channel.
 	const args = [
 		"-y",
 		"-framerate",
@@ -173,7 +183,7 @@ async function encodeWebm({
 		"-i",
 		join(frameDir, "frame-%05d.png"),
 		"-c:v",
-		"libvpx-vp9",
+		"libvpx",
 		"-pix_fmt",
 		"yuva420p",
 		"-auto-alt-ref",
@@ -181,11 +191,11 @@ async function encodeWebm({
 		"-b:v",
 		"0",
 		"-crf",
-		"30",
-		"-deadline",
-		"good",
+		"18",
 		"-cpu-used",
 		"4",
+		"-metadata:s:v:0",
+		"alpha_mode=1",
 		outputPath,
 	];
 
