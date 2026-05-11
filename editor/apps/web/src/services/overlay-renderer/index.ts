@@ -41,7 +41,12 @@ export interface StartOverlayJobInput {
 	vars: TemplateVars;
 	durationSeconds?: number;
 	styleVars?: Record<string, string>;
+	width?: number;
+	height?: number;
 }
+
+const DEFAULT_WIDTH = 1920;
+const DEFAULT_HEIGHT = 1080;
 
 export async function loadOverlayMeta({
 	template,
@@ -65,17 +70,23 @@ export function startOverlayJob({
 	vars,
 	durationSeconds,
 	styleVars,
+	width,
+	height,
 	originBaseUrl,
 }: StartOverlayJobInput & { originBaseUrl: string }): Promise<JobState> {
 	return (async () => {
 		const meta = await loadOverlayMeta({ template });
 		const effectiveDuration = durationSeconds ?? meta.duration;
 		const effectiveStyleVars = styleVars ?? {};
+		const effectiveWidth = width ?? DEFAULT_WIDTH;
+		const effectiveHeight = height ?? DEFAULT_HEIGHT;
 		const hash = computeCacheKey({
 			template,
 			vars,
 			durationSeconds: effectiveDuration,
 			styleVars: effectiveStyleVars,
+			width: effectiveWidth,
+			height: effectiveHeight,
 		});
 
 		const job = createJob({ template, hash });
@@ -87,6 +98,8 @@ export function startOverlayJob({
 			vars,
 			durationSeconds: effectiveDuration,
 			styleVars: effectiveStyleVars,
+			width: effectiveWidth,
+			height: effectiveHeight,
 			hash,
 			originBaseUrl,
 		}).catch((err: unknown) => {
@@ -106,6 +119,8 @@ async function runRender({
 	vars,
 	durationSeconds,
 	styleVars,
+	width,
+	height,
 	hash,
 	originBaseUrl,
 }: {
@@ -114,6 +129,8 @@ async function runRender({
 	vars: TemplateVars;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
+	width: number;
+	height: number;
 	hash: string;
 	originBaseUrl: string;
 }): Promise<void> {
@@ -124,6 +141,8 @@ async function runRender({
 			vars,
 			durationSeconds,
 			styleVars,
+			width,
+			height,
 			hash,
 			onProgress: (progress) => {
 				updateJob({ jobId, patch: { progress } });

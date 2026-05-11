@@ -9,6 +9,8 @@ const requestSchema = z.object({
 	vars: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
 	durationSeconds: z.number().positive().optional(),
 	styleVars: z.record(z.string(), z.string()).optional(),
+	width: z.number().int().positive().max(7680).optional(),
+	height: z.number().int().positive().max(7680).optional(),
 });
 
 export async function POST(req: Request) {
@@ -36,6 +38,8 @@ export async function POST(req: Request) {
 			vars: parsed.data.vars,
 			durationSeconds: parsed.data.durationSeconds,
 			styleVars: parsed.data.styleVars,
+			width: parsed.data.width,
+			height: parsed.data.height,
 			originBaseUrl,
 		});
 		return Response.json({

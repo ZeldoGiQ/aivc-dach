@@ -12,6 +12,8 @@ export interface CacheKeyInput {
 	vars: TemplateVars;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
+	width: number;
+	height: number;
 }
 
 export function computeCacheKey({
@@ -19,6 +21,8 @@ export function computeCacheKey({
 	vars,
 	durationSeconds,
 	styleVars,
+	width,
+	height,
 }: CacheKeyInput): string {
 	const sortedVars = Object.fromEntries(
 		Object.entries(vars).sort(([a], [b]) => a.localeCompare(b)),
@@ -31,6 +35,8 @@ export function computeCacheKey({
 		vars: sortedVars,
 		durationSeconds,
 		styleVars: sortedStyle,
+		width,
+		height,
 	});
 	return createHash("sha256").update(payload).digest("hex").slice(0, 16);
 }

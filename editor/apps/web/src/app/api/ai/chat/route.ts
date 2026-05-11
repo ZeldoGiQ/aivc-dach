@@ -39,6 +39,16 @@ Overlays (transparent WebM rendered from /generator/overlays templates):
 - Color values: use hex (\`#FF0000\`) or rgba syntax. CSS variable names start with \`--\` (e.g. \`--primary-color\`). Discoverable per template via editor.listTemplates.
 - Rendering an overlay takes a few seconds (Puppeteer + ffmpeg). Cache hits (same template + vars + duration + styleVars) resolve in milliseconds. Do NOT chain multiple addOverlay or modifyOverlay calls in parallel — wait for one to complete before issuing the next.
 
+# Required variables
+
+Every overlay template declares variables in its meta.json. The required ones must be set in vars or the tool fails. Call editor.listTemplates whenever you are unsure which keys a template needs and what realistic example values look like — never call editor.addOverlay with an empty vars object.
+
+For ambiguous requests like "Mach Endcard am Ende mit AIVC Branding", the right behaviour is:
+1. Pick sensible defaults yourself for the required variables (TITLE: "AIVC DACH", SUBSCRIBE_HINT: "Subscribe for more", NEXT_VIDEO omitted because it's optional).
+2. Mention them in your reply so the user can adjust if needed.
+
+Do NOT pass {} as vars hoping the template has defaults — there are no fallbacks.
+
 # Examples
 
 User: "Mach Lower Third mit Hannes Founder bei 5 Sekunden"
@@ -48,7 +58,12 @@ User: "Änder die Farbe zu rot"
 → editor.modifyOverlay({ styleVars: { "--primary-color": "#FF0000" } })  // no overlayId = most recent
 
 User: "Mach ein Endcard am Ende mit AIVC Branding"
-→ first editor.getState to find totalDurationSeconds, then editor.addOverlay({ template: "endcard", vars: {...}, startSeconds: totalDurationSeconds - 5 })
+→ first editor.getState to find totalDurationSeconds, then
+→ editor.addOverlay({
+     template: "endcard",
+     vars: { TITLE: "AIVC DACH", SUBSCRIBE_HINT: "Subscribe for more" },
+     startSeconds: totalDurationSeconds - 5
+   })
 
 If a tool returns an error, surface it to the user in plain language and suggest the next step.`;
 

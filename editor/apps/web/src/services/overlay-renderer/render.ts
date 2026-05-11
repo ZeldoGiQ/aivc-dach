@@ -36,8 +36,8 @@ import {
 import { applyTemplateVars, type TemplateVars } from "./template-vars";
 
 const FPS = 30;
-const VIEWPORT_WIDTH = 1920;
-const VIEWPORT_HEIGHT = 1080;
+const DEFAULT_WIDTH = 1920;
+const DEFAULT_HEIGHT = 1080;
 const RENDER_TIMEOUT_MS = 30_000;
 
 export interface RenderInput {
@@ -46,6 +46,8 @@ export interface RenderInput {
 	durationSeconds: number;
 	styleVars: Record<string, string>;
 	hash: string;
+	width?: number;
+	height?: number;
 }
 
 export interface RenderProgress {
@@ -87,11 +89,15 @@ async function renderFrames({
 	html,
 	durationSeconds,
 	frameDir,
+	width,
+	height,
 	onProgress,
 }: {
 	html: string;
 	durationSeconds: number;
 	frameDir: string;
+	width: number;
+	height: number;
 	onProgress?: RenderProgress;
 }): Promise<number> {
 	const browser = await getBrowser();
@@ -99,8 +105,8 @@ async function renderFrames({
 
 	try {
 		await page.setViewport({
-			width: VIEWPORT_WIDTH,
-			height: VIEWPORT_HEIGHT,
+			width,
+			height,
 			deviceScaleFactor: 1,
 		});
 
@@ -134,12 +140,7 @@ async function renderFrames({
 			const buffer = await page.screenshot({
 				type: "png",
 				omitBackground: true,
-				clip: {
-					x: 0,
-					y: 0,
-					width: VIEWPORT_WIDTH,
-					height: VIEWPORT_HEIGHT,
-				},
+				clip: { x: 0, y: 0, width, height },
 			});
 			await writeFile(frameFile, buffer);
 
@@ -212,6 +213,8 @@ export async function renderOverlay({
 	durationSeconds,
 	styleVars,
 	hash,
+	width,
+	height,
 	onProgress,
 }: RenderInput & { onProgress?: RenderProgress }): Promise<string> {
 	if (cachedFileExists({ hash })) {
@@ -223,17 +226,24 @@ export async function renderOverlay({
 		throw new Error(`Template not found: ${template} (looking for ${paths.htmlFile})`);
 	}
 
+	const effectiveWidth = width ?? DEFAULT_WIDTH;
+	const effectiveHeight = height ?? DEFAULT_HEIGHT;
+
 	const rawHtml = await readFile(paths.htmlFile, "utf8");
+	// Force the body to match the requested viewport so a 9:16 canvas isn't
+	// laid out for 1920x1080. Templates use absolute pixels at design time,
+	// but switching width/height on body lets the rest of the CSS adapt
+	// (flex/absolute children re-layout). Inject before </head> so the
+	// override wins.
+	const dimensionStyle = `<style>html,body{width:${effectiveWidth}px !important;height:${effectiveHeight}px !important;}</style>`;
 	const styleInjection = buildStyleOverride({ styleVars });
 	let html = applyTemplateVars({ html: rawHtml, vars });
-	if (styleInjection) {
-		// Inject after </head> opening so it overrides the template's :root defaults.
-		const idx = html.indexOf("</head>");
-		if (idx !== -1) {
-			html = `${html.slice(0, idx)}${styleInjection}${html.slice(idx)}`;
-		} else {
-			html = styleInjection + html;
-		}
+	const headClose = html.indexOf("</head>");
+	const combinedInjection = dimensionStyle + styleInjection;
+	if (headClose !== -1) {
+		html = `${html.slice(0, headClose)}${combinedInjection}${html.slice(headClose)}`;
+	} else {
+		html = combinedInjection + html;
 	}
 
 	await ensureCacheRoot();
@@ -246,6 +256,8 @@ export async function renderOverlay({
 			html,
 			durationSeconds,
 			frameDir: tmpFrameDir,
+			width: effectiveWidth,
+			height: effectiveHeight,
 			onProgress: onProgress
 				? (p) => onProgress(p * 0.85) // reserve last 15% for ffmpeg
 				: undefined,

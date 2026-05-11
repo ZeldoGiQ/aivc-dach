@@ -285,17 +285,28 @@ async function renderOverlayJob({
 	vars,
 	durationSeconds,
 	styleVars,
+	width,
+	height,
 }: {
 	template: string;
 	vars: Record<string, string | number>;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
+	width: number;
+	height: number;
 }): Promise<RenderJobResult> {
 	const t0 = performance.now();
 	const startResp = await fetch("/api/overlays/render", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ template, vars, durationSeconds, styleVars }),
+		body: JSON.stringify({
+			template,
+			vars,
+			durationSeconds,
+			styleVars,
+			width,
+			height,
+		}),
 	});
 	if (!startResp.ok) {
 		const errorBody: unknown = await startResp.json().catch(() => null);
@@ -378,13 +389,24 @@ async function addOverlayImpl(args: unknown): Promise<ToolCallResult> {
 	const startSeconds = parsed.data.startSeconds ?? playheadSeconds;
 	const styleVars = parsed.data.styleVars ?? {};
 
-	// Load template meta to fall back to its recommended duration.
+	// Load template meta to validate required vars and fall back to the
+	// recommended duration.
 	const tmplResp = await fetch("/api/overlays/templates");
 	if (!tmplResp.ok) {
 		return fail(`could not load template list (${tmplResp.status})`);
 	}
 	const tmplData: {
-		templates: Array<{ id: string; duration: number; name: string }>;
+		templates: Array<{
+			id: string;
+			duration: number;
+			name: string;
+			variables: Array<{
+				key: string;
+				required: boolean;
+				example?: string | number;
+				maxLength?: number;
+			}>;
+		}>;
 	} = await tmplResp.json();
 	const meta = tmplData.templates.find(
 		(t) => t.id === parsed.data.template,
@@ -392,8 +414,36 @@ async function addOverlayImpl(args: unknown): Promise<ToolCallResult> {
 	if (!meta) {
 		return fail(`template "${parsed.data.template}" not found`);
 	}
+
+	// Enforce required vars. Small LLMs (Gemini Flash Lite, GPT-4o-mini) often
+	// omit them on vague requests like "make an endcard with AIVC branding".
+	// A loud error here causes the assistant to retry with the missing field.
+	const missing: string[] = [];
+	for (const v of meta.variables) {
+		if (!v.required) continue;
+		const provided = parsed.data.vars[v.key];
+		if (provided === undefined || provided === null || provided === "") {
+			missing.push(
+				v.example
+					? `${v.key} (example: "${String(v.example)}")`
+					: v.key,
+			);
+		}
+	}
+	if (missing.length > 0) {
+		return fail(
+			`Template "${parsed.data.template}" requires these variables — please re-call editor.addOverlay with them set: ${missing.join(", ")}.`,
+		);
+	}
+
 	const durationSeconds =
 		parsed.data.durationSeconds ?? meta.duration;
+
+	// Match the overlay to the project canvas so 9:16 projects don't get a
+	// 16:9 stripe; OpenCut composites both at the project resolution.
+	const canvasSize = project.settings.canvasSize;
+	const renderWidth = canvasSize?.width ?? 1920;
+	const renderHeight = canvasSize?.height ?? 1080;
 
 	let render: RenderJobResult;
 	try {
@@ -402,6 +452,8 @@ async function addOverlayImpl(args: unknown): Promise<ToolCallResult> {
 			vars: parsed.data.vars,
 			durationSeconds,
 			styleVars,
+			width: renderWidth,
+			height: renderHeight,
 		});
 	} catch (err) {
 		return fail(err instanceof Error ? err.message : String(err));
@@ -418,8 +470,8 @@ async function addOverlayImpl(args: unknown): Promise<ToolCallResult> {
 			name: meta.name,
 			type: "video",
 			duration: durationSeconds,
-			width: 1920,
-			height: 1080,
+			width: renderWidth,
+			height: renderHeight,
 			hasAudio: false,
 		},
 	});
@@ -522,6 +574,10 @@ async function modifyOverlayImpl(args: unknown): Promise<ToolCallResult> {
 	const newDuration =
 		parsed.data.durationSeconds ?? existing.durationSeconds;
 
+	const canvasSize = project.settings.canvasSize;
+	const renderWidth = canvasSize?.width ?? 1920;
+	const renderHeight = canvasSize?.height ?? 1080;
+
 	let render: RenderJobResult;
 	try {
 		render = await renderOverlayJob({
@@ -529,6 +585,8 @@ async function modifyOverlayImpl(args: unknown): Promise<ToolCallResult> {
 			vars: newVars,
 			durationSeconds: newDuration,
 			styleVars: newStyleVars,
+			width: renderWidth,
+			height: renderHeight,
 		});
 	} catch (err) {
 		return fail(err instanceof Error ? err.message : String(err));
@@ -545,8 +603,8 @@ async function modifyOverlayImpl(args: unknown): Promise<ToolCallResult> {
 			name: existing.template,
 			type: "video",
 			duration: newDuration,
-			width: 1920,
-			height: 1080,
+			width: renderWidth,
+			height: renderHeight,
 			hasAudio: false,
 		},
 	});
