@@ -2,6 +2,11 @@ import { EditorCore } from "@/core";
 import { buildElementFromMedia } from "@/timeline/element-utils";
 import { DEFAULT_NEW_ELEMENT_DURATION } from "@/timeline/creation";
 import type { TimelineTrack } from "@/timeline/types";
+import {
+	AddTrackCommand,
+	BatchCommand,
+	InsertElementCommand,
+} from "@/commands";
 import { mediaTimeFromSeconds, type MediaTime } from "@/wasm";
 import { findElementsAtTime } from "./selection-resolver";
 import {
@@ -422,7 +427,6 @@ async function addOverlayImpl(args: unknown): Promise<ToolCallResult> {
 		return fail("failed to register overlay media asset");
 	}
 
-	const trackId = editor.timeline.addTrack({ type: "video" });
 	const startTime = mediaTimeFromSeconds({ seconds: startSeconds });
 	const duration = mediaTimeFromSeconds({ seconds: durationSeconds });
 	const element = buildElementFromMedia({
@@ -432,9 +436,21 @@ async function addOverlayImpl(args: unknown): Promise<ToolCallResult> {
 		duration,
 		startTime,
 	});
-	editor.timeline.insertElement({
+
+	// Add a fresh overlay track and insert the element in ONE batch.
+	// Splitting them runs CommandManager's pruning reactor between the two
+	// steps, which removes the empty overlay track we just created (overlay
+	// tracks with zero elements get filtered) — then InsertElement fails
+	// with "Track not found". Batching makes the reactor see the populated
+	// state at commit time.
+	const addTrackCmd = new AddTrackCommand({ type: "video" });
+	const trackId = addTrackCmd.getTrackId();
+	const insertCmd = new InsertElementCommand({
 		element,
 		placement: { mode: "explicit", trackId },
+	});
+	editor.command.execute({
+		command: new BatchCommand([addTrackCmd, insertCmd]),
 	});
 
 	// Find the freshly-inserted element id so we can register it.
