@@ -37,8 +37,9 @@ export interface OverlayMeta {
 }
 
 export interface StartOverlayJobInput {
-	template: string;
-	vars: TemplateVars;
+	template?: string;
+	html?: string;
+	vars?: TemplateVars;
 	durationSeconds?: number;
 	styleVars?: Record<string, string>;
 	width?: number;
@@ -67,6 +68,7 @@ export async function loadOverlayMeta({
 
 export function startOverlayJob({
 	template,
+	html,
 	vars,
 	durationSeconds,
 	styleVars,
@@ -75,27 +77,50 @@ export function startOverlayJob({
 	originBaseUrl,
 }: StartOverlayJobInput & { originBaseUrl: string }): Promise<JobState> {
 	return (async () => {
-		const meta = await loadOverlayMeta({ template });
-		const effectiveDuration = durationSeconds ?? meta.duration;
+		if (!template && !html) {
+			throw new Error(
+				"startOverlayJob: either template or html must be provided",
+			);
+		}
+		const effectiveVars = vars ?? {};
 		const effectiveStyleVars = styleVars ?? {};
 		const effectiveWidth = width ?? DEFAULT_WIDTH;
 		const effectiveHeight = height ?? DEFAULT_HEIGHT;
+
+		let effectiveDuration: number;
+		if (template) {
+			const meta = await loadOverlayMeta({ template });
+			effectiveDuration = durationSeconds ?? meta.duration;
+		} else {
+			// Custom HTML: duration must be supplied (no meta.json to read).
+			if (durationSeconds == null) {
+				throw new Error(
+					"renderCustomOverlay: durationSeconds is required when rendering raw HTML",
+				);
+			}
+			effectiveDuration = durationSeconds;
+		}
+
 		const hash = computeCacheKey({
 			template,
-			vars,
+			html,
+			vars: effectiveVars,
 			durationSeconds: effectiveDuration,
 			styleVars: effectiveStyleVars,
 			width: effectiveWidth,
 			height: effectiveHeight,
 		});
 
-		const job = createJob({ template, hash });
+		const job = createJob({
+			template: template ?? "custom",
+			hash,
+		});
 
-		// Fire-and-forget render. The route returns the job immediately.
 		void runRender({
 			jobId: job.id,
 			template,
-			vars,
+			html,
+			vars: effectiveVars,
 			durationSeconds: effectiveDuration,
 			styleVars: effectiveStyleVars,
 			width: effectiveWidth,
@@ -116,6 +141,7 @@ export function startOverlayJob({
 async function runRender({
 	jobId,
 	template,
+	html,
 	vars,
 	durationSeconds,
 	styleVars,
@@ -125,7 +151,8 @@ async function runRender({
 	originBaseUrl,
 }: {
 	jobId: string;
-	template: string;
+	template?: string;
+	html?: string;
 	vars: TemplateVars;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
@@ -138,6 +165,7 @@ async function runRender({
 	try {
 		await renderOverlay({
 			template,
+			html,
 			vars,
 			durationSeconds,
 			styleVars,

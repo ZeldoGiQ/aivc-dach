@@ -121,6 +121,53 @@ export const editorRemoveOverlaySchema = z.object({
 		),
 });
 
+export const editorRenderCustomOverlaySchema = z.object({
+	html: z
+		.string()
+		.min(1)
+		.describe(
+			"Complete HTML document (<!DOCTYPE html>…</html>) that the renderer will Puppeteer into a transparent WebM. CSS animations are paused and stepped per frame at 30fps, so use plain @keyframes and avoid setTimeout/JS animation. The body MUST have `background: transparent` and the layout MUST be sized to 100vw/100vh (or use width/height variables) so the overlay matches the project canvas. External resources allowed (Google Fonts, public CDNs); avoid private URLs.",
+		),
+	durationSeconds: z
+		.number()
+		.positive()
+		.describe("How long the overlay is on screen, in seconds."),
+	startSeconds: z
+		.number()
+		.nonnegative()
+		.optional()
+		.describe("Insert position on the timeline, in seconds. Defaults to the current playhead position."),
+	originPrompt: z
+		.string()
+		.optional()
+		.describe(
+			"The user's original request that produced this design. Stored alongside the overlay so editor.saveAsTemplate can derive a sensible default name later.",
+		),
+});
+
+export const editorSaveAsTemplateSchema = z.object({
+	overlayId: z
+		.string()
+		.optional()
+		.describe(
+			"Element id of the custom overlay to persist. If omitted, the most recently rendered custom overlay is used.",
+		),
+	name: z
+		.string()
+		.max(60)
+		.optional()
+		.describe(
+			"Short human-readable template name (≤60 chars). Generate one from the user's original request if not provided — e.g. \"AIVC gradient endcard\".",
+		),
+	description: z
+		.string()
+		.max(200)
+		.optional()
+		.describe(
+			"One-sentence description of what the template does. Generate from context if not provided.",
+		),
+});
+
 export const editorToolDefinitions = {
 	"editor.getState": {
 		description:
@@ -162,6 +209,16 @@ export const editorToolDefinitions = {
 			"Remove an overlay from the timeline. If overlayId is omitted, the most recently added overlay is removed.",
 		schema: editorRemoveOverlaySchema,
 	},
+	"editor.renderCustomOverlay": {
+		description:
+			"Render a fully custom overlay from HTML/CSS that you write inline. Use this when no built-in template fits the user's request (e.g. unusual gradients, layouts, brand-specific designs). Pass complete HTML with transparent body, CSS @keyframes for animation, and sensible defaults baked in. The renderer matches the project canvas automatically (9:16, 16:9, custom) — your CSS should adapt to viewport size (use 100vw/100vh, flex, vmin etc.). Heavier than addOverlay because the model emits the full document each call — prefer addOverlay when an existing template fits.",
+		schema: editorRenderCustomOverlaySchema,
+	},
+	"editor.saveAsTemplate": {
+		description:
+			"Persist the most recent custom overlay (or one specified by overlayId) as a reusable template under /generator/overlays/<slug>/. Generate a concise name (≤60 chars) and one-sentence description if the user didn't supply them — derive them from the original request. After saving, the template appears in editor.listTemplates and can be invoked via editor.addOverlay like the built-ins.",
+		schema: editorSaveAsTemplateSchema,
+	},
 } as const;
 
 export type EditorToolName = keyof typeof editorToolDefinitions;
@@ -175,6 +232,8 @@ export const EDITOR_TOOL_NAMES = [
 	"editor.addOverlay",
 	"editor.modifyOverlay",
 	"editor.removeOverlay",
+	"editor.renderCustomOverlay",
+	"editor.saveAsTemplate",
 ] as const satisfies readonly EditorToolName[];
 
 export function isEditorToolName(value: string): value is EditorToolName {

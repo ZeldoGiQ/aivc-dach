@@ -8,7 +8,10 @@ import type { TemplateVars } from "./template-vars";
 const REPO_ROOT_FROM_WEB = ["..", "..", ".."];
 
 export interface CacheKeyInput {
-	template: string;
+	/** Either a template id (resolved to /generator/overlays/<id>/template.html) … */
+	template?: string;
+	/** … or a raw HTML string for ad-hoc renders. */
+	html?: string;
 	vars: TemplateVars;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
@@ -18,6 +21,7 @@ export interface CacheKeyInput {
 
 export function computeCacheKey({
 	template,
+	html,
 	vars,
 	durationSeconds,
 	styleVars,
@@ -30,8 +34,11 @@ export function computeCacheKey({
 	const sortedStyle = Object.fromEntries(
 		Object.entries(styleVars).sort(([a], [b]) => a.localeCompare(b)),
 	);
+	// For custom HTML, hash the body; for template, use the id. Keys for the
+	// two paths are disjoint by construction (different prefixes).
+	const sourceKey = template ? `tpl:${template}` : `html:${createHash("sha256").update(html ?? "").digest("hex")}`;
 	const payload = JSON.stringify({
-		template,
+		source: sourceKey,
 		vars: sortedVars,
 		durationSeconds,
 		styleVars: sortedStyle,

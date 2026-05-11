@@ -7,7 +7,15 @@
 export interface OverlayRegistryEntry {
 	elementId: string;
 	trackId: string;
+	/** Template id, or "custom" for ad-hoc HTML renders. */
 	template: string;
+	/** Raw HTML for custom overlays. Required when template === "custom" so
+	 *  modifyOverlay can re-render, and saveAsTemplate can persist the source. */
+	customHtml?: string;
+	/** Free-form description of what the user asked for. Used by
+	 *  saveAsTemplate to derive a sensible default name when the AI doesn't
+	 *  pass one in. */
+	originPrompt?: string;
 	vars: Record<string, string>;
 	styleVars: Record<string, string>;
 	durationSeconds: number;

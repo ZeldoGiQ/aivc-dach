@@ -8,6 +8,8 @@ import {
 	editorListTemplatesSchema,
 	editorModifyOverlaySchema,
 	editorRemoveOverlaySchema,
+	editorRenderCustomOverlaySchema,
+	editorSaveAsTemplateSchema,
 	editorTrimSchema,
 } from "@/ai/tools";
 
@@ -29,6 +31,8 @@ Overlays (transparent WebM rendered from /generator/overlays templates):
 - editor.addOverlay — render and insert an overlay on a fresh overlay track. Defaults: startSeconds = current playhead, durationSeconds = template default.
 - editor.modifyOverlay — re-render an overlay with patched vars / styleVars / duration. Without overlayId it operates on the most recently added overlay.
 - editor.removeOverlay — delete an overlay from the timeline. Same default-to-most-recent behavior.
+- editor.renderCustomOverlay — for requests that don't fit any built-in template. You emit a complete HTML document (transparent body, CSS @keyframes for animation, full document, no JS animation). Use this for unusual gradients, custom layouts, or anything the user describes that you can't faithfully reproduce with the built-in templates + styleVars.
+- editor.saveAsTemplate — after a renderCustomOverlay the user likes, they can say "speicher das als Template" / "save this as a template" — call this with a concise name (≤60 chars) you generate from the original request. The template then appears in editor.listTemplates and can be reused via addOverlay.
 
 # Behaviour
 
@@ -48,6 +52,17 @@ For ambiguous requests like "Mach Endcard am Ende mit AIVC Branding", the right 
 2. Mention them in your reply so the user can adjust if needed.
 
 Do NOT pass {} as vars hoping the template has defaults — there are no fallbacks.
+
+# Template vs custom — decision rule
+
+Prefer editor.addOverlay with a built-in template when the user's request maps cleanly to one. Use editor.renderCustomOverlay when the request specifies visual behaviour the built-ins can't reproduce — typical signals:
+- "gradient from 0% to 100% transparency", "fade out from top to bottom", custom background gradients
+- specific font/positioning/animation that no styleVar exposes
+- whole new layouts ("3-column grid of stats")
+
+When you render custom, always pass originPrompt: the user's literal request (or your shortened paraphrase). That lets editor.saveAsTemplate later derive a default name.
+
+When the user says any of "speicher das als Template" / "save this as a template" / "merk dir das" / "store this design" → call editor.saveAsTemplate with a short, descriptive name (≤60 chars) derived from the original request. Confirm to the user what slug it was saved under so they can call it back by name.
 
 # Examples
 
@@ -127,6 +142,16 @@ export async function POST(req: Request) {
 				description:
 					"Remove an overlay from the timeline. If overlayId is omitted, the most recently added overlay is removed.",
 				inputSchema: editorRemoveOverlaySchema,
+			}),
+			"editor.renderCustomOverlay": tool({
+				description:
+					"Render a fully custom overlay from HTML/CSS you write inline. Use when no built-in template fits (unusual gradients, layouts, brand-specific designs). Body must be transparent, animations via CSS @keyframes only, sized to viewport. Always pass originPrompt so saveAsTemplate can derive a name later.",
+				inputSchema: editorRenderCustomOverlaySchema,
+			}),
+			"editor.saveAsTemplate": tool({
+				description:
+					"Persist the most recent custom overlay (or one specified by overlayId) as a reusable template. Generate a name (≤60 chars) and one-sentence description from the original request if the user didn't supply them. Returns the slug — confirm it back so the user can call the template by name.",
+				inputSchema: editorSaveAsTemplateSchema,
 			}),
 		},
 	});

@@ -21,6 +21,8 @@ import {
 	editorListTemplatesSchema,
 	editorModifyOverlaySchema,
 	editorRemoveOverlaySchema,
+	editorRenderCustomOverlaySchema,
+	editorSaveAsTemplateSchema,
 	editorTrimSchema,
 	isEditorToolName,
 } from "./tools";
@@ -282,13 +284,15 @@ interface JobStatePayload {
 
 async function renderOverlayJob({
 	template,
+	html,
 	vars,
 	durationSeconds,
 	styleVars,
 	width,
 	height,
 }: {
-	template: string;
+	template?: string;
+	html?: string;
 	vars: Record<string, string | number>;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
@@ -300,7 +304,7 @@ async function renderOverlayJob({
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({
-			template,
+			...(template ? { template } : { html }),
 			vars,
 			durationSeconds,
 			styleVars,
@@ -580,14 +584,24 @@ async function modifyOverlayImpl(args: unknown): Promise<ToolCallResult> {
 
 	let render: RenderJobResult;
 	try {
-		render = await renderOverlayJob({
-			template: existing.template,
-			vars: newVars,
-			durationSeconds: newDuration,
-			styleVars: newStyleVars,
-			width: renderWidth,
-			height: renderHeight,
-		});
+		render =
+			existing.template === "custom"
+				? await renderOverlayJob({
+						html: existing.customHtml,
+						vars: newVars,
+						durationSeconds: newDuration,
+						styleVars: newStyleVars,
+						width: renderWidth,
+						height: renderHeight,
+					})
+				: await renderOverlayJob({
+						template: existing.template,
+						vars: newVars,
+						durationSeconds: newDuration,
+						styleVars: newStyleVars,
+						width: renderWidth,
+						height: renderHeight,
+					});
 	} catch (err) {
 		return fail(err instanceof Error ? err.message : String(err));
 	}
@@ -645,6 +659,172 @@ async function modifyOverlayImpl(args: unknown): Promise<ToolCallResult> {
 	});
 }
 
+async function renderCustomOverlayImpl(args: unknown): Promise<ToolCallResult> {
+	const parsed = editorRenderCustomOverlaySchema.safeParse(args);
+	if (!parsed.success) {
+		return fail(
+			`Invalid arguments for editor.renderCustomOverlay: ${parsed.error.message}`,
+		);
+	}
+	const editor = EditorCore.getInstance();
+	const project = editor.project.getActive();
+	const scene = editor.scenes.getActiveSceneOrNull();
+	if (!scene) return fail("No active scene. Open or create a project first.");
+
+	const canvasSize = project.settings.canvasSize;
+	const renderWidth = canvasSize?.width ?? 1920;
+	const renderHeight = canvasSize?.height ?? 1080;
+	const playheadSeconds = mediaTimeToSecondsRounded({
+		time: editor.playback.getCurrentTime(),
+	});
+	const startSeconds = parsed.data.startSeconds ?? playheadSeconds;
+
+	let render: RenderJobResult;
+	try {
+		render = await renderOverlayJob({
+			html: parsed.data.html,
+			vars: {},
+			durationSeconds: parsed.data.durationSeconds,
+			styleVars: {},
+			width: renderWidth,
+			height: renderHeight,
+		});
+	} catch (err) {
+		return fail(err instanceof Error ? err.message : String(err));
+	}
+
+	const file = await fileFromUrl({
+		url: render.fileUrl,
+		name: `custom-${render.hash}.webm`,
+	});
+	const asset = await editor.media.addMediaAsset({
+		projectId: project.metadata.id,
+		asset: {
+			file,
+			name: parsed.data.originPrompt ?? "Custom Overlay",
+			type: "video",
+			duration: parsed.data.durationSeconds,
+			width: renderWidth,
+			height: renderHeight,
+			hasAudio: false,
+		},
+	});
+	if (!asset) {
+		return fail("failed to register custom overlay media asset");
+	}
+
+	const startTime = mediaTimeFromSeconds({ seconds: startSeconds });
+	const duration = mediaTimeFromSeconds({
+		seconds: parsed.data.durationSeconds,
+	});
+	const element = buildElementFromMedia({
+		mediaId: asset.id,
+		mediaType: "video",
+		name: parsed.data.originPrompt ?? "Custom Overlay",
+		duration,
+		startTime,
+	});
+
+	const addTrackCmd = new AddTrackCommand({ type: "video" });
+	const trackId = addTrackCmd.getTrackId();
+	const insertCmd = new InsertElementCommand({
+		element,
+		placement: { mode: "explicit", trackId },
+	});
+	editor.command.execute({
+		command: new BatchCommand([addTrackCmd, insertCmd]),
+	});
+
+	const refreshedScene = editor.scenes.getActiveScene();
+	const refreshedTrack = refreshedScene.tracks.overlay.find(
+		(t) => t.id === trackId,
+	);
+	const insertedId = refreshedTrack?.elements[0]?.id;
+	if (!insertedId) {
+		return fail("inserted custom overlay element could not be located");
+	}
+
+	registerOverlay({
+		elementId: insertedId,
+		trackId,
+		template: "custom",
+		customHtml: parsed.data.html,
+		originPrompt: parsed.data.originPrompt,
+		vars: {},
+		styleVars: {},
+		durationSeconds: parsed.data.durationSeconds,
+		mediaId: asset.id,
+		createdAt: Date.now(),
+	});
+
+	return succeed({
+		overlayId: insertedId,
+		template: "custom",
+		startSeconds,
+		durationSeconds: parsed.data.durationSeconds,
+		cached: render.cached,
+		renderMs: Math.round(render.durationMs),
+		trackId,
+	});
+}
+
+async function saveAsTemplateImpl(args: unknown): Promise<ToolCallResult> {
+	const parsed = editorSaveAsTemplateSchema.safeParse(args);
+	if (!parsed.success) {
+		return fail(
+			`Invalid arguments for editor.saveAsTemplate: ${parsed.error.message}`,
+		);
+	}
+	const existing = resolveOverlay({ overlayId: parsed.data.overlayId });
+	if (!existing) {
+		return fail(
+			parsed.data.overlayId
+				? `overlay ${parsed.data.overlayId} not found`
+				: "no overlays on the timeline yet — render one with editor.renderCustomOverlay first",
+		);
+	}
+	if (existing.template !== "custom" || !existing.customHtml) {
+		return fail(
+			"only custom overlays (rendered via editor.renderCustomOverlay) can be saved as templates — built-in templates are already persisted",
+		);
+	}
+
+	const fallbackName =
+		existing.originPrompt
+			? existing.originPrompt.slice(0, 60)
+			: `Custom overlay ${new Date().toISOString().slice(0, 10)}`;
+	const name = parsed.data.name?.slice(0, 60) ?? fallbackName;
+
+	const resp = await fetch("/api/overlays/save-template", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({
+			name,
+			description: parsed.data.description,
+			html: existing.customHtml,
+			durationSeconds: existing.durationSeconds,
+			originPrompt: existing.originPrompt,
+		}),
+	});
+	if (!resp.ok) {
+		const body: unknown = await resp.json().catch(() => null);
+		let msg = `save-template endpoint returned ${resp.status}`;
+		if (body && typeof body === "object" && "error" in body) {
+			const errVal = (body as { error?: unknown }).error;
+			if (typeof errVal === "string") msg = errVal;
+		}
+		return fail(msg);
+	}
+	const saved: { slug: string; name: string; path: string } = await resp.json();
+
+	return succeed({
+		slug: saved.slug,
+		name: saved.name,
+		path: saved.path,
+		note: "Template saved. Use editor.listTemplates to confirm, then editor.addOverlay({ template: slug, vars: {} }) to reuse.",
+	});
+}
+
 async function removeOverlayImpl(args: unknown): Promise<ToolCallResult> {
 	const parsed = editorRemoveOverlaySchema.safeParse(args);
 	if (!parsed.success) {
@@ -697,6 +877,10 @@ export async function executeEditorTool({
 			return modifyOverlayImpl(args);
 		case "editor.removeOverlay":
 			return removeOverlayImpl(args);
+		case "editor.renderCustomOverlay":
+			return renderCustomOverlayImpl(args);
+		case "editor.saveAsTemplate":
+			return saveAsTemplateImpl(args);
 	}
 }
 

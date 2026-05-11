@@ -41,7 +41,10 @@ const DEFAULT_HEIGHT = 1080;
 const RENDER_TIMEOUT_MS = 30_000;
 
 export interface RenderInput {
-	template: string;
+	/** Either a template id … */
+	template?: string;
+	/** … or raw HTML to render directly. Exactly one of these must be set. */
+	html?: string;
 	vars: TemplateVars;
 	durationSeconds: number;
 	styleVars: Record<string, string>;
@@ -209,6 +212,7 @@ async function encodeWebm({
 
 export async function renderOverlay({
 	template,
+	html: rawCustomHtml,
 	vars,
 	durationSeconds,
 	styleVars,
@@ -221,15 +225,23 @@ export async function renderOverlay({
 		return cachedFilePath({ hash });
 	}
 
-	const paths = templatePath({ template });
-	if (!existsSync(paths.htmlFile)) {
-		throw new Error(`Template not found: ${template} (looking for ${paths.htmlFile})`);
+	if (!template && !rawCustomHtml) {
+		throw new Error("renderOverlay: either template or html must be provided");
 	}
 
 	const effectiveWidth = width ?? DEFAULT_WIDTH;
 	const effectiveHeight = height ?? DEFAULT_HEIGHT;
 
-	const rawHtml = await readFile(paths.htmlFile, "utf8");
+	let rawHtml: string;
+	if (template) {
+		const paths = templatePath({ template });
+		if (!existsSync(paths.htmlFile)) {
+			throw new Error(`Template not found: ${template} (looking for ${paths.htmlFile})`);
+		}
+		rawHtml = await readFile(paths.htmlFile, "utf8");
+	} else {
+		rawHtml = rawCustomHtml ?? "";
+	}
 	// Force the body to match the requested viewport so a 9:16 canvas isn't
 	// laid out for 1920x1080. Templates use absolute pixels at design time,
 	// but switching width/height on body lets the rest of the CSS adapt

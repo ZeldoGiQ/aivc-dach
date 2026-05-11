@@ -13,6 +13,8 @@ const TOOL_LABELS: Record<string, string> = {
 	"editor.addOverlay": "Rendering overlay",
 	"editor.modifyOverlay": "Re-rendering overlay",
 	"editor.removeOverlay": "Removing overlay",
+	"editor.renderCustomOverlay": "Rendering custom overlay",
+	"editor.saveAsTemplate": "Saving as template",
 };
 
 interface OverlayOutputResult {
